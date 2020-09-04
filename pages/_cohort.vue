@@ -1,7 +1,7 @@
 <template>
   <fragment>
     <client-only>
-      <Loader v-if="!pages.length && !showRevealPageEmailed"/>
+      <Loader v-if="(!pages.length && !showRevealPage) || savingProfile" />
     </client-only>
 
 
@@ -14,7 +14,6 @@
       ">
         <div style="margin-right: 0px">
           <img v-if="pages.length" :src="cohort.logoDark ? cohort.logoDark : require('@/assets/images/TheKindQuiz-Yellow.svg')" style="height: 30px;" />
-          
         </div>
       </div>
     </v-app-bar>
@@ -28,59 +27,175 @@
 
 
     <!-- THE KIND QUIZ LOGO ON DESKTOP ONLY -->
-    <img v-if="pages.length && !mobile && !showRevealPageEmailed" :src="cohort.logo ? cohort.logo : require('@/assets/images/TheKindQuiz-Yellow.svg')" style="height: 4vh; position: fixed; top: 15px; left: 20px;">
+    <img v-if="pages.length && !mobile && !showRevealPage" :src="cohort.logo ? cohort.logo : require('@/assets/images/TheKindQuiz-Yellow.svg')" style="max-height: 100px; position: fixed; top: 15px; left: 20px;" :style="{ 'max-width': (cohortSettings.logoMaxWidth || 200) + 'px' }">
     <!-- GLIDE CONTAINER SYSTEM  -->
 
-
-    <vue-glide v-model="active" class="vueGlide" v-if="pages.length && active + 1 !== pages.length" :gap="0" :animationDuration="450" :perView="2" :bound="true" :perTouch="1" @glide:run-after="checkState()" :dragDistance="false" :rewind="false" :peek="0">
-      <vue-glide-slide v-for="(page, i) in pages" :key="i" style="width: 90vw;">
-        <div class="cardHolder cardHolderGeneral" v-if="active + 1 > i" :id="'cardHolder' + i" :ref="'cardHolder' + i" style="height: auto;" :style="{ marginLeft: active - 1 === i ? marginLeft : '' }">
-          <div style="display: flex; flex-direction: column; justify-content: center;" id="glideCard">
-            <div :key="j + 'card'" v-for="(item, j) in page.items" style="display: flex; flex-direction: column; justify-content: center;">
-              <v-card style="border-radius: 20px; background: rgba(255, 255, 255, 1);" :class="j === 0 ? 'no-scoot' : 'scoot'">
-                <v-card-title style="word-break: normal;" class="title font-weight-regular" :style="{ backgroundColor: item.primaryColor}" primary-title :id="'cardTitle' + i" :ref="'cardTitle' + i">
-                  <span class="itemText">{{ item.text }}</span>
-
+    <vue-glide
+      v-model="active"
+      class="vueGlide"
+      v-if="pages.length && active + 1 !== pages.length"
+      :gap="0"
+      :animationDuration="450"
+      :perView="cohortSettings.rtl ? 1 : 2"
+      :bound="true"
+      :perTouch="1"
+      @glide:run-after="checkState()"
+      :dragDistance="false"
+      :rewind="false"
+      :peek="0"
+      :direction="cohortSettings.rtl ? 'rtl' : 'ltr'"
+    >
+      <vue-glide-slide
+        v-for="(page, i) in pages"
+        :key="i"
+        style="width: 90vw;"
+      >
+        <div
+          class="cardHolderGeneral cardHolder"
+          v-if="active + 1 > i"
+          :id="'cardHolder' + i"
+          :ref="'cardHolder' + i"
+          :style="{ marginLeft: active - 1 === i ? marginLeft : '' }"
+        >
+          <div class="center-all">
+            <div class="center-all welcome-container" v-if="page.title==='welcome'">
+              <v-card
+                style="border-radius: 20px; background: rgba(255, 255, 255, 1);" 
+                :class="'no-scoot'"
+                class="welcome-card"
+              >
+                <v-card-title
+                  style="word-break: normal;"
+                  class="title font-weight-regular"
+                  primary-title
+                  :id="'cardTitle' + i"
+                  :ref="'cardTitle' + i"
+                >
+                  <div class="itemText" v-html="page.text">
+                  </div>
                 </v-card-title>
-                <div v-for="(response, k) in item.responses" :key="k">
+              </v-card>
+            </div>
+
+            <div
+              :key="j + 'card'"
+              v-for="(item, j) in page.items"
+              class="center-all"
+            >
+
+              <v-card
+                style="border-radius: 20px; background: rgba(255, 255, 255, 1);" 
+                :class="j === 0 ? 'no-scoot' : 'scoot'"
+              >
+                <v-card-title
+                  style="word-break: normal;"
+                  class="title font-weight-regular"
+                  :style="{ backgroundColor: item.primaryColor}"
+                  primary-title
+                  :id="'cardTitle' + i"
+                  :ref="'cardTitle' + i"
+                >
+                  <span class="itemText">{{ item.text }}</span>
+                  <span style="display: none">{{revealPageId}}</span>
+                </v-card-title>
+
+
+                <div
+                  v-for="(response, k) in item.responses"
+                  :key="k"
+                >
                   <v-divider></v-divider>
 
+
                   <!-- TEXT FIELD RESPONSE TYPE -->
-                  <v-layout align-center v-if="item.type === 'Textfield'" :class="k === item.responses.length - 1 && j === page.items.length - 1 ? 'bottomResponse' : k === item.responses.length - 1 ? 'bottomResponse_notLast' : 'notBottom'" class="pt-2" style="width: 100%">
-                    <v-flex xs11 class="pl-7 pt-4" style="word-break: normal;">
-                      <v-text-field v-if="response.text.includes('name')" v-model="response.responseText" clearable :label="response.text"></v-text-field>
-                      <v-text-field v-if="!response.text.includes('name')" type="email" v-model="response.responseText" clearable :label="response.text"></v-text-field>
+                  <v-layout
+                    align-center
+                    v-if="item.type === 'Textfield'"
+                    :class="getResponseClass(k, j, item, page)"
+                    class="pt-2"
+                    style="width: 100%"
+                  >
+                    <v-flex xs11 :class="{
+                      'pt-4': true,
+                      'pr-7': cohortSettings.rtl,
+                      'pl-7': !cohortSettings.rtl,
+                    }" style="word-break: normal;">
+                      <v-text-field
+                        v-if="response.text.includes('name')"
+                        v-model="response.responseText"
+                        clearable
+                        :label="response.text"
+                      >
+                      </v-text-field>
+                      
+                      <v-text-field
+                        v-if="!response.text.includes('name')"
+                        type="email"
+                        v-model="response.responseText"
+                        clearable
+                        :label="response.text"
+                      ></v-text-field>
                     </v-flex>
                   </v-layout>
 
                   <v-row style="color: #8e8e8e; font-size: 13px; margin-top: -30px; width: 100%; height: 70px;padding-left: 38px;padding-right: 33px;" v-if="item.type === 'Textfield' && response.text.includes('mail')">
-                    Your email enables us to send you information about your Kind profile
+                    Your email enables us to send you information about your {{surveyTypeData.title}} profile
                   </v-row>
+
+
 
                   <!-- MULTIPLE CHOICE SINGLE -->
                   <v-layout
                     align-center
                     v-if="item.type === 'MultiOptionSelectOne' || item.type === 'Dichotomous'"
                     @click="selectResponse(item, response)"
-                    :class="k === item.responses.length - 1 && j === page.items.length - 1 ? 'bottomResponse' : k === item.responses.length - 1 ? 'bottomResponse_notLast' : 'notBottom'"
+                    :class="getResponseClass(k, j, item, page)"
                     class="pt-2"
-                    :style="{ background: response.clicked ? '#efefef' : 'rgb(255,255,255, 1)'}" style="width: 100%"
+                    :style="{ background: response.clicked ? '#efefef' : 'rgb(255,255,255, 1)'}"
+                    style="width: 100%"
                   >
-                    <v-flex xs4 class="display-2 font-weight-medium pl-7 pt-4" style="word-break: normal;">
-                      {{ (k + 10).toString(36).toUpperCase()}}
+                    <v-flex
+                      v-if="item.responses.length < 26"
+                      xs4
+                      class="display-2 font-weight-medium"
+                      :class="{
+                        'pt-4': true,
+                        'pr-7': cohortSettings.rtl,
+                        'pl-7': !cohortSettings.rtl,
+                      }"
+                      style="word-break: normal;"
+                    >
+                      <span>{{ (k + 10).toString(36).toUpperCase()}}</span>
                     </v-flex>
 
-                    <v-flex xs6 align-center style="margin: 5px 0px 0px 0px; word-break: normal;">
-                        <span class="responseText" style="font-weight: 500; display: block;">{{ response.text }} </span>
+                    <v-flex
+                      v-if="item.responses.length < 26"
+                      xs6
+                      align-center
+                      style="margin: 5px 0px 0px 0px; word-break: normal;"
+                    >
+                      <span class="responseText" style="font-weight: 500; display: block;">{{ response.text }} </span>
+                    </v-flex>
+
+                    <v-flex
+                      v-if="item.responses.length >= 26"
+                      xs12
+                      align-center
+                      style="margin: 5px 0px 0px 0px; word-break: normal;"
+                      class="px-4"
+                    >
+                      <span class="responseText" style="font-weight: 500; display: block;">{{ response.text }} </span>
                     </v-flex>
                   </v-layout>
+
+
 
                   <!-- MultiOptionSelectMany -->
                   <v-layout
                     align-center
                     v-if="item.type === 'MultiOptionSelectMany'"
                     @click="selectMultiResponseSelectMany(item, response)" 
-                    :class="k === item.responses.length - 1 && j === page.items.length - 1 ? 'bottomResponse' : k === item.responses.length - 1 ? 'bottomResponse_notLast' : 'notBottom'" 
+                    :class="getResponseClass(k, j, item, page)"
                     class="pt-2"
                     :style="{ background: response.clicked ? '#efefef' : 'rgb(255,255,255, 1)'}" style="width: 100%"
                   >
@@ -89,26 +204,49 @@
                   </v-layout>
                 </div>
               </v-card>
+
               <!-- IN BETWEEN MULTIPLE CARDS ON PAGE GOES HERE -->
               <!-- <div style="height: 99px;"  v-if="item.type==='Textfield'">
                   <div class="materialShadow emailMessage">
                   </div>
               </div> -->
             </div>
+
+
             <div style="height: 50px; z-index: -10">
               <transition name="fade">
                 <div class="materialShadow selectResponse" v-if="snackbar && active === i">{{ alertMessage ? alertMessage : pages[active].items.length > 1 ? 'Please respond to all items.' : 'Please select a response to continue.'}}
                 </div>
               </transition>
             </div>
-            <div v-if="!screenThresholdNine || isSelectManyOrTextFieldOnPage" style=" padding: 4px; margin-top: 20px; display: flex; flex-direction: row; justify-content: center" :ref="`myNavButtons${active}`" :id="`myNavButtons${active}`">
-              <v-btn :disabled="loading" v-if="active !== 0 && !screenThresholdNine" x-large style="width: 140px; margin-right: 20px;" @click="back">back</v-btn>
-              <v-btn :loading="loading" x-large style="width: 140px;" @click="next">next</v-btn>
+            <div v-if="!screenThresholdNine || isSelectManyOrTextFieldOnPage || (active == 0 && hasWelcomePage)" style=" padding: 4px; margin-top: 20px; display: flex; flex-direction: row; justify-content: center" :ref="`myNavButtons${active}`" :id="`myNavButtons${active}`">
+              <v-btn
+                :disabled="loading"
+                v-if="active > basePageNum && !screenThresholdNine"
+                x-large
+                style="width: 140px; margin-right: 20px;"
+                @click="back"
+              >{{ $t('quiz.back') }}</v-btn>
+              <v-btn
+                v-if="active >= basePageNum"
+                :loading="loading"
+                x-large
+                style="width: 140px;"
+                @click="next"
+              >{{ $t('quiz.next') }}</v-btn>
+
+              <v-btn
+                v-if="active == 0 && hasWelcomePage"
+                x-large
+                style="width: 140px;"
+                @click="next"
+              >{{ $t('quiz.start') }}</v-btn>
             </div>
           </div>
         </div>
       </vue-glide-slide>
     </vue-glide>
+
     <div v-if="pages.length" style="z-index: 100; width: 40px; height: 100px;"></div>
     <!-- <v-snackbar
       :timeout="1500"
@@ -132,19 +270,27 @@
     <!-- FOOTER -->
     <section v-if="active + 1 < pages.length">
       <transition name="fade" appear>
-        <div style="position: fixed; bottom: 10px;" id="footer" v-if="screenThresholdEleven">
+
+        <div style="position: fixed; bottom: 10px;" id="footer" v-if="screenThresholdTwelve && active >= basePageNum">
           <div style="display: flex; flex-direction: row; justify-content: center; width: 100vw; font-weight: bold; color: #6c7578; opacity: 0.94">
-            <div style="font-size: 3vh;"> {{ active + 1}} </div>
-            <div style="font-size: 2.2vh; margin-top: 0.85vh"> /{{ pages.length - 1}}</div>
+            <div style="font-size: 3vh;"> {{ currentPageStr }} </div>
+            <div style="font-size: 2.2vh; margin-top: 0.85vh"> /{{ totalPageStr }}</div>
           </div>
         </div>
-        <div style="position: fixed; bottom: 12px;" id="footer" v-if="!screenThresholdEleven">
-          <div style="display: flex; flex-direction: row; justify-content: center; width: 100vw; font-weight: bold; text-shadow: 2px 2px 4px dimgray;">
-            <div style="color: white; font-size: 3vh;"> {{ beforeTen ? '0' + (active + 1) : active + 1 }} </div>
-            <div style="color: #ffc71a; font-size: 2.2vh; margin-top: 0.9vh"> /{{ pages.length - 1}}</div>
+      </transition>
+      <transition name="fade" appear>
+        <div style="position: fixed; bottom: 12px;" id="footer">
+          <div style="display: flex; flex-direction: row; justify-content: center; width: 100vw; font-weight: bold; text-shadow: 2px 2px 4px dimgray;"  v-if="!screenThresholdTwelve && active >= basePageNum">
+            <div style="color: white; font-size: 3vh;"> {{currentPageStr}} </div>
+            <div style="color: #ffc71a; font-size: 2.2vh; margin-top: 0.9vh"> /{{totalPageStr}}</div>
           </div>
-          <div style="display: flex; flex-direction: row; justify-content: center; width: 100vw; color: #efefef; text-shadow: 2px 2px 4px dimgray; font-size: 15px">
-            {{ new Date().getYear() + 1900 }} @ Summery, Inc. All rights reserved. | &nbsp;<a target="_blank" style="margin: 0px 5px 0px 5px; color: white; text-decoration: none;" href="https://summery.ai/ethical-data-privacy"> Privacy policy</a> | <a href="https://www.summery.ai" target="_blank"><img :src="require('@/assets/images/poweredBy.svg')" style="height: 22px; margin: 0px 3px -7px 3px;" /></a>
+
+          <div class="footer-links" v-if="!screenThresholdTwelve">
+            <div class="text-center" style="direction: ltr">{{ $t('quiz.copyright', [new Date().getYear() + 1900]) }}</div>
+            <span class="footer-links-separator"> &nbsp; | &nbsp; </span>
+            <a class="text-center" target="_blank" style="margin: 0px 5px 0px 5px; color: white !important; text-decoration: none;" href="https://summery.ai/ethical-data-privacy"> {{ $t('quiz.privacy-policy') }}</a>
+            <span class="footer-links-separator">&nbsp; | &nbsp;</span>
+            <a class="text-center" href="https://www.summery.ai" target="_blank"><img :src="require('@/assets/images/poweredBy.svg')" style="height: 22px; margin: 0px 3px -7px 3px;" /></a>
           </div>
         </div>
       </transition>
@@ -156,8 +302,16 @@
     <reveal-page-emailed 
       v-if="showRevealPageEmailed"
       :pageData="revealPageData"
+      :surveyType="surveyType"
+      :surveyTypeData="surveyTypeData"
     >
     </reveal-page-emailed>
+
+    <reveal-page-ncs
+      v-if="showNCSRevealPage"
+      :pageData="revealPageData"
+    >
+    </reveal-page-ncs>
   </fragment>
 </template>
 
@@ -170,6 +324,7 @@ import { mapGetters } from 'vuex'
 
 import Loader from '@/components/Loader'
 import RevealPageEmailed from '@/components/RevealPageEmailed'
+import RevealPageNcs from '@/components/RevealPageNcs'
 import { cohortMockdata } from '@/utils'
 
 export default {
@@ -187,6 +342,13 @@ export default {
       error
     } = context
 
+    const filterStatus = (status) => {
+      if (status === 'inactive') {
+        return redirect('/notfound')
+      } else if (status === 'testing' && !query.testing) {
+        return redirect('/notfound')
+      }
+    }
     if (!params.cohort) {
       return redirect('/classic')
     }
@@ -196,26 +358,48 @@ export default {
         let tempId = query.id.slice(0, query.id.indexOf('_'))
         let id = query.id.slice(query.id.indexOf('_') + 1)
 
-        let profile = (await context.$axios.post('/getProfileByTempIdAndCohort', {
-          tempUserProfileId: tempId,
-          cohortLabel: params.cohort,
-          id: id
-        })).data
-
-
-        const revealData = (await context.$axios.post('/getCohortAndSurveyByCohortLabel', { cohortLabel: params.cohort })).data
-
-
-        const revealPage = (await context.$axios.post('/getRevealPageByTitle', { title: profile.name })).data
-
-        return {
-          showRevealPageEmailed: true,
-          revealPageData: {
+        if (query.ncs) {
+          let profile = (await context.$axios.post('/getProfileByTempIdAndCohort', {
+            tempUserProfileId: tempId,
             cohortLabel: params.cohort,
-            id: id,
-            profile: profile,
-            revealData: revealData,
-            revealPage: revealPage
+            id: id
+          })).data
+
+          const revealData = (await context.$axios.post('/getCohortAndSurveyByCohortLabel', { cohortLabel: params.cohort })).data
+          console.log(revealData)
+          const revealPage = (await context.$axios.post('/getRevealPageById', { id: profile.revealPageId })).data
+
+          return {
+            showNCSRevealPage: true,
+            revealPageData: {
+              cohortLabel: params.cohort,
+              id: id,
+              profile: profile,
+              revealData: revealData,
+              revealPage: revealPage
+            }
+          }
+        } else {
+          let profile = (await context.$axios.post('/getProfileByTempIdAndCohort', {
+            tempUserProfileId: tempId,
+            cohortLabel: params.cohort,
+            id: id
+          })).data
+
+          const revealData = (await context.$axios.post('/getCohortAndSurveyByCohortLabel', { cohortLabel: params.cohort })).data
+
+          const revealPage = (await context.$axios.post('/getRevealPageById', { id: profile.revealPageId })).data
+
+
+          return {
+            showRevealPageEmailed: true,
+            revealPageData: {
+              cohortLabel: params.cohort,
+              id: id,
+              profile: profile,
+              revealData: revealData,
+              revealPage: revealPage
+            }
           }
         }
       } catch(err) {
@@ -234,12 +418,12 @@ export default {
           })
         })
 
+        filterStatus(surveyCohortResp.data.cohort.status)
         return {
           surveyCohort: surveyCohortResp.data,
-          showRevealPageEmailed: false
         }
       } catch(err) {
-        console.log(err)
+        // console.log(err)
         // error(err)
         return redirect('/notfound')
       }
@@ -247,20 +431,20 @@ export default {
   },
   components: {
     Loader,
-    RevealPageEmailed
+    RevealPageEmailed,
+    RevealPageNcs
   },
   directives: {
     mask
   },
-  data () {
-    return {
-    }
-  },
   head() {
-    if (this.showRevealPageEmailed) {
+    if (this.showRevealPageEmailed || this.showNCSRevealPage) {
       const cohortLabel = this.revealPageData.cohortLabel || ''
       const profile = this.revealPageData.profile;
-      const title = `${profile.firstName}'s Kind Profile` || 'Kind Profile'
+      const title = this.showRevealPageEmailed
+        ? (`${profile.firstName}'s ${this.surveyTypeData.title} Profile` || `${this.surveyTypeData.title} Profile`)
+        : `${profile.firstName}'s NCS`
+
       const description = `${profile.firstName} is ${profile.name}`
       const image = this.revealPageData.revealPage.seoImage || this.revealPageData.revealPage.profileImage
 
@@ -270,7 +454,7 @@ export default {
           { name: 'title', content: title },
           { hid: 'description', name: 'description', content: description },
 
-          { hid: 'og:url', name: 'og:url', content: `https://kindquiz.com/${cohortLabel}` },
+          { hid: 'og:url', name: 'og:url', content: `https://1582831145273_1579143247037_kindquizsocialshare.com/${cohortLabel}` },
           { hid: 'og:title', name: 'og:title', content: title },
           { hid: 'og:site_name', name: 'og:site_name', content: title },
           
@@ -324,12 +508,26 @@ export default {
   },
 
   mounted() {
+    this.$ga.page(this.$router)
+    this.$i18n.locale = this.cohortSettings.language || 'en'
+
     this.$store.dispatch('app/setEnvironment', { root: true })
     addEventListener('resize', this.calcMetric)
     this.calcMetric()
 
-    if (this.showRevealPageEmailed) {
+    if (this.cohortSettings.rtl) {
+      this.$vuetify.rtl = true
+    }
+
+
+    if (this.showRevealPage) {
       return ;
+    }
+
+    if(this.hasWelcomePage) {
+      this.images.push(new Image())
+      this.images[this.images.length - 1].src = this.surveyCohort.survey.welcome.backgroundImage
+      this.images[this.images.length - 1].alt = this.surveyCohort.survey.welcome.altText
     }
     this.surveyCohort.survey.quickLoadJSON.forEach((page) => {
       this.images.push(new Image())
@@ -338,15 +536,25 @@ export default {
     })
 
     let imageLoadingCount = 0
-    this.images.slice(0, 5).forEach(image => {
+    const maxImageCount = Math.min(5, this.images.length)
+
+    this.images.slice(0, maxImageCount).forEach(image => {
       image.onload = () => {
         imageLoadingCount ++  
-        if (imageLoadingCount == 5) {
+        if (imageLoadingCount == maxImageCount) {
           this.pages = this.surveyCohort.survey.quickLoadJSON
 
           this.pages.push({
             title: 'finalSlot'
           })
+
+          if(this.hasWelcomePage) {
+            this.pages.unshift({
+              title: 'welcome',
+              text: this.surveyCohort.survey.welcome.text,
+              items: [],
+            })
+          }
 
           this.$nextTick(() => {
             try {
@@ -362,6 +570,12 @@ export default {
             }
           })
 
+          this.allResponses = []
+          this.pages.forEach(page => {
+            Array.isArray(page.items) && page.items.forEach(item => {
+              this.allResponses = this.allResponses.concat(item.responses)
+            })
+          })
         }
       }
     })
@@ -384,6 +598,16 @@ export default {
       this.viewPortWidth = window.innerWidth
       this.viewPortHeight = window.innerHeight
     },
+    getResponseClass(k, j, item, page) {
+      return k === item.responses.length - 1 && j === page.items.length - 1 
+        ? 'bottomResponse' 
+        : k === item.responses.length - 1 
+          ? 'bottomResponse_notLast' 
+          : 'notBottom'
+    },
+
+    
+
     dispatchPersonalInfo(selection) {
       // email
       // firstName
@@ -391,11 +615,7 @@ export default {
       // residence
       // professionalLevel
       // age
-
-      // TODO Andy
-      // this.$store.dispatch(selection.type, selection)
-
-      if (['residence', 'professionalLevel', 'age', 'most_need'].indexOf(selection.type) != -1) {
+      if (['residence', 'professionalLevel', 'age', 'most_need', 'gender'].indexOf(selection.type) != -1) {
         this.personalInfo = {
           ...this.personalInfo,
           [selection.type]: selection.text
@@ -417,6 +637,7 @@ export default {
     pageHasAllRequiredAnswers(page) {
       let completed = true
       let minResponse = 1 // in future, item.minResponses    dynamically  in the bottom if statement, will be database field.  
+
       page.items.forEach((item) => {
         let counter = 0
         if (item.type === 'Dichotomous') {
@@ -457,9 +678,11 @@ export default {
         return false
       }
 
-      const isCausePage = page.items[0].responses[0].type === 'cause';
+      const isCausePage = page.items[0] && page.items[0].responses[0].type === 'cause';
+      const isDonationInflPage = page.items[0] && page.items[0].responses[0].type === 'donation_influences';
 
-      if (isCausePage && this.causes.length === 0) {
+      if ((isCausePage && this.causes.length === 0)
+        || (isDonationInflPage && this.donation_influences.length === 0)) {
         if (showError) {
           this.alertMessage = "Please choose at least one."
           this.snackbar = true
@@ -469,7 +692,6 @@ export default {
         }
         return false
       }
-
 
       return true
     },
@@ -481,11 +703,6 @@ export default {
       const prevPage = this.pages[this.active - 1];
       if (!this.isValidPage(prevPage)) {
         this.active -= 1;
-      }
-    },
-    computeKindnessDimensions(response) {
-      if (['disruption','innovation','empathy','integrity','agility'].indexOf(response.type != -1)) {
-        this[response.type] += 1
       }
     },
     selectResponse(item, response) {
@@ -502,23 +719,6 @@ export default {
 
         this.$store.dispatch('app/recordResponse', response)
         this.dispatchPersonalInfo(response)
-        this.computeKindnessDimensions(response)
-
-        // weightArray is calculated by the computed property
-        // if (response.weights) {
-        //   response.weights.forEach((weight) => {
-        //     for (var i = 0; i < this.weightArray.length; i++) {
-        //       if (weight.title === this.weightArray[i].title) {
-        //         this.weightArray[i].weight = Number(this.weightArray[i].weight) + Number(weight.weight)
-        //         return
-        //       }
-        //     }
-        //     this.weightArray.push({ // need to track response_id because if they go back and answer an item twice
-        //       title: weight.title,
-        //       weight: Number(weight.weight)
-        //     })
-        //   })
-        // }
 
         if (response.topTraits[0].title !== '') {
           // console.log(response.topTraits)
@@ -534,13 +734,31 @@ export default {
     },
     selectMultiResponseSelectMany(item, response) { // this is only used for the "causes" right now.
       response.clicked = !response.clicked
-      if (response.type === 'cause' && response.clicked) {
-        this.causes.push(response.text)
-        this.causes = [...new Set(this.causes)] // uniquify
-
+      if (response.type === 'cause') {
+        if (response.clicked) {
+          this.causes.push(response.text)
+          this.causes = this.causes.sort((c1, c2) => {
+            if (c1 > c2) {
+              return 1
+            } else if (c1 < c2) {
+              return -1
+            } else {
+              0
+            }
+          })
+          this.causes = [...new Set(this.causes)] // uniquify
+        } else {
+          this.causes = this.causes.filter(cause => cause !== response.text)  
+        }
       }
-      if (response.type === 'cause' && !response.clicked) {
-        this.causes = this.causes.filter(cause => cause !== response.text)
+
+      if (response.type === 'donation_influences') {
+        if (response.clicked) {
+          this.donation_influences.push(response.text)
+          this.donation_influences = [...new Set(this.donation_influences)] // uniquify
+        } else {
+          this.donation_influences = this.donation_influences.filter(i => i !== response.text)  
+        }
       }
 
       this.$store.dispatch('app/recordResponse', response)
@@ -553,7 +771,6 @@ export default {
         return 
       }
 
-      console.log(this.surveyCohort, this.responses)
       // if not last page
       if (this.active + 1 !== this.pages.length - 1) {
         this.eventSelectResponse(this.pages[this.active])
@@ -579,13 +796,15 @@ export default {
 
 
         try {
+          this.savingProfile = true
           let emailInUse = await this.$axios.post('/checkEmail', { email: this.personalInfo.email, cohortId: this.cohortId })
 
           if (emailInUse.data.emailCount === 0) {
             // then this passes back-end test. Email can be used once per cohort (i.e., once per URL param)
             this.active += 1
 
-            let res = await this.$axios.post('/getRevealPageByTitle', { title: this.profileType })
+            let res = await this.$axios.post('/getRevealPageById', { id: this.revealPageId })
+            const dim = this.getFinalDimension()
 
             const profileData = {
               email: this.personalInfo.email,
@@ -595,36 +814,38 @@ export default {
               professionalLevel: this.personalInfo.professionalLevel,
               age: this.personalInfo.age,
               most_need: this.personalInfo.most_need,
+              gender: this.personalInfo.gender,
 
               responses: this.responses, //json
-              name: this.profileType,
+              name: res.data.title,
+              revealPageId: this.revealPageId,
               tempUserProfileId: this.tempUserProfileId,
               
               causes: this.causes, // json
+              donation_influences: this.donation_influences,
               topTraits: this.topTraits, // json
 
-              // Andy TODO
-              kindnessWordsList: this.kindnessWordsListFiltered, //json
 
-              agility: this.agility,
-              disruption: this.disruption,
-              empathy: this.empathy,
-              innovation: this.innovation,
-              integrity: this.integrity,
+              agility: dim[0],
+              disruption: dim[1],
+              empathy: dim[2],
+              innovation: dim[3],
+              integrity: dim[4],
 
               cohortLabel: this.cohortLabel,
               cohortId: this.cohortId,
               surveyId: this.surveyId
             }
 
-            debugger
             let res2 = await this.$axios.post('/saveProfile', {
               profileImage: res.data.profileImage,
               profileData: profileData,
-              profileType: this.profileType
+              dimension: dim,
             })
 
             const revealRoute = `/${profileData.cohortLabel}?id=${profileData.tempUserProfileId}_${res2.data.id}`
+
+            localStorage.removeItem('tempUserProfileId')
             location.href = revealRoute
 
           } else if (emailInUse.data.emailCount > 0) {
@@ -634,6 +855,7 @@ export default {
               this.snackbar = false
             }, 6000)
           }
+          this.savingProfile = false
           this.loading = false
           return
         } catch (e) {
@@ -656,9 +878,102 @@ export default {
         }).join(' | ')}`,
         eventValue: page.id
       })
+    },
+
+    getFinalDimension () {
+      let totalDimension = [0, 0, 0, 0, 0]
+      this.allResponses.forEach(resp => {
+        const exists = this.responses.find(r => r.id === resp.id)
+
+        const toSum = !!exists
+          ? resp.yesDim
+          : resp.noDim
+
+        if (!toSum
+          || !Array.isArray(toSum)
+          || toSum.length !== 5) {
+          return 
+        }
+
+        totalDimension = totalDimension.map((v, index) => {
+          return v + (+toSum[index])
+        })
+      })
+
+      const dimCals = this.surveyCohort.survey.dimCals
+
+      if (!dimCals || !dimCals.total || !dimCals.delta) {
+        totalDimension = [0, 0, 0, 0, 0]
+      } else {
+        totalDimension = totalDimension.map((v, index) => {
+          return  parseFloat(((v + (+dimCals.delta[index])) * 6 / (+dimCals.total[index]) + 1).toFixed(2))
+        })
+        console.log(totalDimension, 'after')
+      }
+      
+      return totalDimension
     }
   },
   computed: {
+    cohortSettings() {
+      try {
+        if (this.showRevealPage) {
+          return this.revealPageData.revealData.cohort.settings
+        } else {
+          console.log(this.surveyCohort.cohort)
+          return this.surveyCohort.cohort.settings
+        }
+      } catch(err) {
+        return {}
+      }
+    },
+    surveyTypeData() {
+      return this.allSurveyTypeData[this.surveyType]
+    },
+    surveyType() {
+      let surveyTitle = ''
+      try {
+        if (this.showRevealPageEmailed || this.showNCSRevealPage) {
+          if (this.revealPageData.revealData) {
+            surveyTitle = this.revealPageData.revealData.survey.title
+          }
+        } else {
+          if (this.surveyCohort && this.surveyCohort.survey) {
+            surveyTitle = this.surveyCohort.survey.title
+          }
+        }
+      } catch(err) {
+        // pass
+      }
+
+      const allGogatesSurveyTitles = ['gogates']
+      if (allGogatesSurveyTitles.indexOf(surveyTitle) !== -1) {
+        return 'gogates'
+      } else {
+        return 'kind'
+      }
+    },
+    basePageNum() {
+      return this.hasWelcomePage ? 1 : 0
+    },
+    currentPageStr() {
+      let cPage = this.hasWelcomePage ? this.active - 1 : this.active;
+
+      return cPage < 9
+        ? '0' + (cPage + 1)
+        : cPage + 1
+    },
+    totalPageStr() {
+      return this.hasWelcomePage
+        ? this.pages.length - 2
+        : this.pages.length - 1;
+    },
+    hasWelcomePage() {
+      return !!this.surveyCohort.survey.welcome && !!this.surveyCohort.survey.welcome.backgroundImage
+    },
+    showRevealPage() {
+      return this.showRevealPageEmailed || this.showNCSRevealPage;
+    },
     responses: {
       get () {
         return this.$store.state.app.responses
@@ -682,9 +997,6 @@ export default {
 
 
     ...mapGetters('app', ['tempUserProfileId']),
-    beforeTen() {
-      return this.active < 9
-    },
     weightArray() {
       let myArray = []
       this.responses.forEach(response => {
@@ -692,7 +1004,7 @@ export default {
           response.weights.forEach(weight => {
             let matched = false
             myArray.forEach(instance => {
-              if (instance.title === weight.title) {
+              if (instance.id === weight.id) {
                 instance.weight = Number(instance.weight) + Number(weight.weight)
                 matched = true
               }
@@ -701,26 +1013,30 @@ export default {
               myArray.push({
                 title: weight.title,
                 weight: weight.weight,
-                itemId: weight.itemId
+                itemId: weight.itemId,
+                id: weight.id
               })
             }
 
           })
         }
       })
+
+      myArray = myArray.sort((s1, s2) => s1.title > s2.title ? -1 : 1)
       return myArray
     },
-    profileType() {
-      let type = 'default'
-      let biggestWeight = 0
+    revealPageId() {
+      let id = null
+      let biggestWeight = -100000
 
       this.weightArray.forEach((obj) => {
         if (obj.weight > biggestWeight) {
           biggestWeight = obj.weight
-          type = obj.title
+          id = obj.id
         }
       })
-      return type
+      console.log(id, 'Selected reveal id')
+      return id
     },
     marginLeft() {
       if (this.screenThresholdTwelve) {
@@ -748,6 +1064,9 @@ export default {
 
   },
   watch: {
+    tempUserProfileId (val) {
+      this.$ga.set('userId', val)
+    },
     active() {
       try {
         window.scrollTo(0, 0)
@@ -774,6 +1093,17 @@ export default {
     }
   },
   data: () => ({
+    allSurveyTypeData: {
+      gogates: {
+        title: 'GoGates'
+      },
+      kind: {
+        title: 'Kind'
+      }
+    },
+
+    showRevealPageEmailed: false,
+    showNCSRevealPage: false,
     alertMessage: '',
     showLoadingFlower: true,
 
@@ -809,15 +1139,15 @@ export default {
 
     pages: [],
     mask: 'Aaaaaaaaaaaaaaaa',
-    // weightArray: [],
+    
     causes: [],
+    donation_influences: [],
+
+    allResponses: [],
+
+
     topTraits: [],
-    empathy: 0,
-    disruption: 0,
-    innovation: 0,
-    agility: 0,
-    integrity: 0,
-    profileTypeEmail: null,
+    revealPageIdEmail: null,
     images: [],
     resources: [],
     profile: null,
@@ -830,95 +1160,91 @@ export default {
       professionalLevel: '',
       age: '',
       most_need: '',
-    }
+    },
+    savingProfile: false
   }),
 }
 </script>
 
-<style scoped>
-  .materialShadow {
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
-    transition: all 0.3s cubic-bezier(.25, .8, .25, 1);
-  }
+<style scoped lang="scss">
+.materialShadow {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.24);
+  transition: all 0.3s cubic-bezier(.25, .8, .25, 1);
+}
 
-  .cardHolderGeneral {
-    width: 100vw;
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-  }
-
-
-  .bottomResponse {
-    border-bottom-left-radius: 20px;
-    border-bottom-right-radius: 20px;
-    padding-bottom: 15px;
-  }
-
-  .bottomResponse_notLast {
-    height: auto;
-    padding-bottom: 40px;
-  }
-
-  .notBottom {
-    height: auto;
-    padding-bottom: 15px;
-  }
-
-  .fade-enter-active,
-  .fade-leave-active {
-    transition: opacity 0.4s ease;
-  }
-
-  .fade-enter,
-  .fade-leave-to
-
-  /* .fade-leave-active below version 2.1.8 */
-  {
-    opacity: 0;
-  }
+.cardHolderGeneral {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  height: auto;
+  width: 100vw;
+}
 
 
+.center-all {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
 
-  @media screen and (max-device-height: 490px) {
+.bottomResponse {
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  padding-bottom: 15px;
+}
 
-    .no-scoot {
-      border-radius: 20px;
-      margin-top: 0px;
-      word-break: normal;
-      margin-bottom: 0px;
-    }
+.bottomResponse_notLast {
+  height: auto;
+  padding-bottom: 40px;
+}
+
+.notBottom {
+  height: auto;
+  padding-bottom: 15px;
+}
+
+.itemText {
+  color: white;
+  font-size: 20px;
+  line-height: 25px;
+  font-weight: 550;
+}
+
+.welcome-container {
+  margin-top: 100px;
+}
+.welcome-card .itemText {
+  color: #000;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.footer-links {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  width: 100vw;
+  color: #efefef;
+  text-shadow: 2px 2px 4px dimgray;
+  font-size: 15px;
+}
 
 
-  /* .emailMessage {
-    z-index: -10;
-    width: 77vw;
-    border-bottom-right-radius: 15px;border-bottom-left-radius: 15px; border: 4px solid gray; color: gray; font-size: 17px; line-height: 60px; font-style: italic;
-    margin-top: -20px; display: flex; padding-bottom: 5px; flex-direction: row; justify-content: center; background-color: white; height: 140px; text-align: center;
-  } */
+@media screen and (max-device-height: 490px) {
 
-  }
-
-
-/* @media screen and (max-device-height: 500px) {
-
-.no-scoot {
-    bottom: 0px;
+  .no-scoot {
     border-radius: 20px;
     margin-top: 0px;
     word-break: normal;
-    margin-bottom: 100px; 
+    margin-bottom: 0px;
   }
-
-} */
-
-
+}
 
 
 
 
 /* iphone 6 zoomed view */
-@media screen and (max-device-width: 500px) {
+@media screen and (max-device-width: 501px) {
 
   .selectResponse {
     z-index: -10;
@@ -952,11 +1278,7 @@ export default {
 
 
   .itemText {
-    font-size: 20px;
-    line-height: 25px;
-    font-weight: 550;
     padding: 6px 20px 0px 20px;
-    color: white;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -981,6 +1303,59 @@ export default {
   .topBar {
     padding: 5px 0px 5px 0px;
     z-index: 1000;
+  }
+
+  .pageImage {
+    position: fixed;
+    bottom: 40%;
+    width: 100vw;
+    height: 60vh;
+    object-fit: cover;
+  }
+
+  .scoot {
+    word-break: normal;
+    margin-top: -18px;
+    width: 77vw;
+  }
+
+  .no-scoot {
+    width: 77vw;
+    border-radius: 20px;
+    margin-top: 0px;
+    word-break: normal;
+  }
+
+  .emailMessage {
+    z-index: -10;
+    width: 77vw;
+    border-bottom-right-radius: 15px;
+    border-bottom-left-radius: 15px;
+    border: 4px solid gray;
+    color: gray;
+    font-size: 17px;
+    line-height: 28px;
+    font-style: italic;
+    margin-top: -20px;
+    display: flex;
+    padding: 25px 10px 5px 10px;
+    flex-direction: row;
+    justify-content: center;
+    background-color: white;
+    height: 120px;
+    text-align: center;
+  }
+
+  .cardHolder {
+    margin-left: -7vw;
+  }
+
+  .footer-links {
+    flex-direction: column;
+    align-items: center;
+    .footer-links-separator {
+      display: none;
+    }
   }
 }
 
@@ -1012,11 +1387,7 @@ export default {
   }
 
   .itemText {
-    font-size: 20px;
-    line-height: 25px;
     padding: 20px 20px 20px 20px;
-    color: white;
-    font-weight: 550;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -1082,7 +1453,9 @@ export default {
   .cardHolder {
     margin-left: -1vw;
     margin-right: 100vw;
-
+  }
+  .glide--rtl .cardHolder {
+    margin-right: -1vw;
   }
 
   .responseText {
@@ -1091,65 +1464,18 @@ export default {
   }
 }
 
-
-
-
-@media screen and (max-device-width: 501px) {
-  .pageImage {
-    position: fixed;
-    bottom: 40%;
-    width: 100vw;
-    height: 60vh;
-    object-fit: cover;
-  }
-
-  .scoot {
-    word-break: normal;
-    margin-top: -18px;
-    width: 77vw;
-  }
-
-  .no-scoot {
-    width: 77vw;
-    border-radius: 20px;
-    margin-top: 0px;
-    word-break: normal;
-  }
-
-  .emailMessage {
-    z-index: -10;
-    width: 77vw;
-    border-bottom-right-radius: 15px;
-    border-bottom-left-radius: 15px;
-    border: 4px solid gray;
-    color: gray;
-    font-size: 17px;
-    line-height: 28px;
-    font-style: italic;
-    margin-top: -20px;
-    display: flex;
-    padding: 25px 10px 5px 10px;
-    flex-direction: row;
-    justify-content: center;
-    background-color: white;
-    height: 120px;
-    text-align: center;
-  }
-
-  .cardHolder {
-    margin-left: -7vw;
+@media screen and (min-device-width: 425px) {
+  .topBar {
+    visibility: hidden;
   }
 }
 
 @media screen and (max-device-height: 500px) {
-
   .scoot {}
 
   .itemText {
     font-size: 16px;
     -webkit-font-smoothing: antialiased;
-    font-weight: 550;
-    line-height: 20px;
   }
 
   .responseText {

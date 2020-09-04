@@ -1,0 +1,47 @@
+{
+  "quiz": {
+    "start": "Start",
+    "next": "Next",
+    "back": "Back",
+    "copyright": "© {0} Summery, Inc. All rights reserved.",
+    "privacy-policy": "Privacy policy"
+  },
+  "reveal-top": {
+    "your-x-profile-is-" : "Your {0} profile is",
+    "check-out": "Check out your kindness traits, celebrities who share your {0} profile, and how to compare with your friends."
+  },
+  "reveal-nav": {
+    "desc": "{0} is {1} with a kindness that is {2}"
+  },
+  "reveal-profile": {
+    "your-x-profile" : "Your {0} Profile"
+  },
+  "reveal-kindness": {
+    "your-kindness-is": "Your Kindness is"
+  },
+  "reveal-overview": {
+    "overview": "Overview",
+    "your-x-profile" : "Your {0} profile",
+    "desc": "reflects your dominant traits, core attributes, and personal inclinations. \n This unique blend of social values and engagement preferences combine to reveal your unique kindness:"
+  },
+  "reveal-trait": {
+    "title": "Top {0} traits"
+  },
+  "reveal-celebrity": {
+    "title": "Famous {0} people",
+    "with-your-x": "With your {0} profile,",
+    "stand-out": "you stand in good company with these influential people. Your kindness closely aligns with:"
+  },
+  "reveal-resource": {
+    "title": "Just for you {0}",
+    "desc": "With your {0} profile, these are the social impact activities that most resonate with your values and engagement preferences. Click on one to see how you can instantly engage!"
+  },
+  "reveal-cause": {
+    "title": "Causes you care about most",
+    "desc": "Here are the <span style=\"font-weight: bold\">specific causes</span> that stir your heart and motivate you to take action:"
+  },
+  "reveal-footer": {
+    "your-x-profile-is-" : "Your {0} profile is",
+    "share-compare": "Share & Compare"
+  }
+}

@@ -17,6 +17,7 @@ export default {
     return {
       responses: [],
       tempUserProfileId: null,
+      locale: 'en',
     }
   },
   getters: {
@@ -26,6 +27,9 @@ export default {
     tempUserProfileId (state) {
       return state.tempUserProfileId
     },
+    locale (state) {
+      return state.locale
+    }
   },
   mutations: {
     tempUserProfileId (state, payload) {
@@ -43,7 +47,9 @@ export default {
       state.responses.splice(index, 1, payload)
       localStorage.setItem('responses', state.responses)
     },
-
+    setLang (state, locale) {
+      state.locale = locale
+    }
   },
   actions: {
     setEnvironment  ({ commit }) {

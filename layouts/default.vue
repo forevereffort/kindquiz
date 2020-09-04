@@ -1,5 +1,7 @@
 <template>
-  <v-app style="background-color: #d2dfe6;" id="kindquiz">
+  <v-app id="kindquiz" :style="{
+    'background-color': isNcs ? '#FFF' : '#d2dfe6'
+  }">
     <nuxt />
   </v-app>
 </template>
@@ -16,6 +18,9 @@ export default {
   mounted() {
   },
   computed: {
+    isNcs() {
+      return !!this.$route.query.ncs
+    }
   },
   watch: {
   },

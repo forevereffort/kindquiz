@@ -57,12 +57,25 @@ module.exports = {
     '@/plugins/vue-glide',
     '@/plugins/vue-fragment',
     '@/plugins/filters',
+    {
+      src: '~/plugins/vue-apexcharts',
+      ssr: false
+    },
+    '~/plugins/vue-moment.js',
+    '~/plugins/i18n.js',
+    { src: '~plugins/ga.js', mode: 'client' }
   ],
   /*
   ** Nuxt.js dev-modules
   */
   buildModules: [
-    
+    ['@nuxtjs/google-analytics', {
+      id: 'UA-79846215-2',
+      debug: {
+        enabled: true,
+        sendHitTask: true
+      }
+    }],
   ],
   /*
   ** Nuxt.js modules
@@ -97,15 +110,14 @@ module.exports = {
       }
     }],
 
-    ['@nuxtjs/google-analytics', {
-      id: 'UA-79846215-2'
-    }],
-
     // Doc: https://axios.nuxtjs.org/usage
     '@nuxtjs/axios',
     '@nuxtjs/pwa',
     // Doc: https://github.com/nuxt-community/dotenv-module
     '@nuxtjs/dotenv',
+    ['@nuxtjs/google-analytics', {
+      id: 'UA-79846215-2'
+    }],
   ],
   /*
   ** Axios module configuration
